@@ -20,9 +20,28 @@ services:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper_catcher:2182
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_catcher:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     networks:
       - kafka_net
+
+  topic_creator:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - kafka_catcher
+    networks:
+      - kafka_net
+    entrypoint: /bin/sh
+    command: -c "
+      echo 'Waiting for Kafka to be ready...';
+      while ! nc -z kafka_catcher 9093; do
+      sleep 1;
+      done;
+      echo 'Kafka is ready. Creating topics...';
+      kafka-topics --create --topic LogsAndMetrics --bootstrap-server kafka_catcher:9093 --replication-factor 1 --partitions 1;
+      echo 'Topics created.';
+      sleep 10;"
 
   kafka-ui-catcher:
     image: provectuslabs/kafka-ui
@@ -39,12 +58,15 @@ services:
 
   catcher:
     build:
-      context: https://github.com/isatay012or02/kafka-diode-catcher.git
+      context: https://github.com/AydinKZ/K-Diode-Catcher.git
       dockerfile: Dockerfile
+    ports:
+      - "9999:9999/udp"
     environment:
-      KAFKA_BROKER: kafka_catcher:9093
       UDP_IP: "127.0.0.1"
-      UDP_PORT: 9999
+      UDP_PORT:
+      ENABLE_HASH: "true"
+      KAFKA_LOGGER_TOPIC: "LogsAndMetrics"
     networks:
       - kafka_net
     restart: always
