@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/common/expfmt"
 	"github.com/segmentio/kafka-go"
 	"log"
+	"time"
 )
 
 type KafkaWriter struct {
@@ -17,7 +18,11 @@ type KafkaWriter struct {
 
 func NewKafkaWriter(brokers []string, loggerTopic string) *KafkaWriter {
 	writer := kafka.NewWriter(kafka.WriterConfig{
-		Brokers: brokers,
+		Brokers:      brokers,
+		BatchTimeout: 10 * time.Millisecond,
+		BatchSize:    100,
+		Balancer:     &kafka.LeastBytes{},
+		Async:        true,
 	})
 	return &KafkaWriter{writer: writer, loggerTopic: loggerTopic}
 }
